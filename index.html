@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tata Letak Cetak 2 Gambar (A4 & F4 Landscape)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- jsPDF untuk Ekspor PDF Ukuran Fisik Asli (A4 / F4) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+        }
+
+        /* Custom Scrollbar untuk Panel Kontrol */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Styling khusus saat mode Cetak (Print) */
+        @media print {
+            body {
+                background: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            #preview-workspace {
+                padding: 0 !important;
+                margin: 0 !important;
+                background: white !important;
+                display: block !important;
+                overflow: visible !important;
+                width: 100% !important;
+                height: 100% !important;
+            }
+            #paper-scale-wrapper {
+                transform: none !important;
+                width: 100% !important;
+                height: 100% !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+            }
+            #paper-sheet {
+                box-shadow: none !important;
+                margin: 0 !important;
+                border: none !important;
+            }
+            /* Sembunyikan garis panduan margin luar saat dicetak, sisakan garis potong tengah jika diaktifkan */
+            .margin-guide-box {
+                border-color: transparent !important;
+            }
+            .slot-placeholder {
+                display: none !important;
+            }
+            .slot-container {
+                background-color: transparent !important;
+            }
+        }
+    </style>
+    <!-- Style dinamis untuk ukuran halaman @page -->
+    <style id="dynamic-page-style">
+        @page {
+            size: 297mm 210mm;
+            margin: 0;
+        }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- Header / Navbar -->
+    <header class="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shrink-0 no-print z-20 shadow-sm">
+        <div class="flex items-center gap-3">
+            <div class="bg-indigo-600 text-white p-2 rounded-lg shadow-sm">
+                <i data-lucide="columns" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-slate-900 text-base sm:text-lg leading-tight">Cetak 2 Gambar Proporsional</h1>
+                <p class="text-xs text-slate-500 hidden sm:block">Tata letak berdampingan (Kiri & Kanan) untuk kertas A4 atau F4 Landscape</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 sm:gap-3">
+            <button id="btn-reset" type="button" class="px-3 py-2 text-xs sm:text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition flex items-center gap-1.5" title="Reset semua pengaturan">
+                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                <span class="hidden md:inline">Reset</span>
+            </button>
+            <button id="btn-download" type="button" class="px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition flex items-center gap-1.5" title="Unduh sebagai gambar PNG">
+                <i data-lucide="image" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">PNG</span>
+            </button>
+            <button id="btn-pdf" type="button" class="px-3 py-2 text-xs sm:text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition flex items-center gap-1.5" title="Simpan file PDF siap cetak ukuran asli">
+                <i data-lucide="file-down" class="w-4 h-4"></i>
+                <span>Simpan PDF</span>
+            </button>
+            <button id="btn-print" type="button" class="px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition flex items-center gap-1.5">
+                <i data-lucide="printer" class="w-4 h-4"></i>
+                <span>Cetak Halaman</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Konten Utama: Panel Kiri (Kontrol) & Area Kanan (Live Preview) -->
+    <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        
+        <!-- Sidebar Kontrol -->
+        <aside class="w-full lg:w-[400px] xl:w-[430px] bg-white border-r border-slate-200 flex flex-col shrink-0 h-[48vh] lg:h-full no-print z-10">
+            
+            <!-- Tab Navigasi Kontrol (Mobile & Desktop agar rapi) -->
+            <div class="grid grid-cols-3 border-b border-slate-200 bg-slate-50/70 text-xs font-semibold shrink-0">
+                <button class="tab-btn active py-3 px-2 border-b-2 border-indigo-600 text-indigo-600 flex items-center justify-center gap-1.5" data-tab="tab-images">
+                    <i data-lucide="image" class="w-4 h-4"></i>
+                    <span>1. Gambar</span>
+                </button>
+                <button class="tab-btn py-3 px-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1.5" data-tab="tab-paper">
+                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                    <span>2. Kertas & Margin</span>
+                </button>
+                <button class="tab-btn py-3 px-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1.5" data-tab="tab-adjust">
+                    <i data-lucide="sliders" class="w-4 h-4"></i>
+                    <span>3. Posisi & Zoom</span>
+                </button>
+            </div>
+
+            <!-- Isi Panel Kontrol (Scrollable) -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-5">
+
+                <!-- TAB 1: UNGGAH & PILIH GAMBAR -->
+                <div id="tab-images" class="tab-content space-y-5">
+                    
+                    <!-- Kartu Slot Kiri -->
+                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                                Gambar Sisi Kiri
+                            </span>
+                            <button type="button" id="btn-clear-left" class="text-xs text-rose-600 hover:underline hidden">Hapus</button>
+                        </div>
+                        
+                        <label class="block w-full cursor-pointer">
+                            <input type="file" id="input-img-left" accept="image/*" class="hidden">
+                            <div id="dropzone-left" class="border-2 border-dashed border-slate-300 hover:border-indigo-500 bg-white rounded-lg p-4 text-center transition">
+                                <i data-lucide="upload-cloud" class="w-6 h-6 text-indigo-500 mx-auto mb-1"></i>
+                                <p class="text-xs font-medium text-slate-700">Klik untuk pilih Gambar Kiri</p>
+                                <p class="text-[11px] text-slate-400 mt-0.5">JPG, PNG, WEBP (Maks. disarankan resolusi tinggi)</p>
+                            </div>
+                        </label>
+
+                        <button type="button" id="btn-copy-left-to-right" class="w-full py-2 px-3 bg-white hover:bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg text-xs font-medium transition flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none" disabled>
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                            Gunakan Gambar Kiri untuk Keduanya
+                        </button>
+                    </div>
+
+                    <!-- Kartu Slot Kanan -->
+                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+                                Gambar Sisi Kanan
+                            </span>
+                            <button type="button" id="btn-clear-right" class="text-xs text-rose-600 hover:underline hidden">Hapus</button>
+                        </div>
+                        
+                        <label class="block w-full cursor-pointer">
+                            <input type="file" id="input-img-right" accept="image/*" class="hidden">
+                            <div id="dropzone-right" class="border-2 border-dashed border-slate-300 hover:border-indigo-500 bg-white rounded-lg p-4 text-center transition">
+                                <i data-lucide="upload-cloud" class="w-6 h-6 text-emerald-500 mx-auto mb-1"></i>
+                                <p class="text-xs font-medium text-slate-700">Klik untuk pilih Gambar Kanan</p>
+                                <p class="text-[11px] text-slate-400 mt-0.5">JPG, PNG, WEBP</p>
+                            </div>
+                        </label>
+
+                        <button type="button" id="btn-copy-right-to-left" class="w-full py-2 px-3 bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-medium transition flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none" disabled>
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                            Gunakan Gambar Kanan untuk Keduanya
+                        </button>
+                    </div>
+
+                    <!-- Tombol Tukar Posisi -->
+                    <button type="button" id="btn-swap-images" class="w-full py-2.5 px-3 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-medium transition flex items-center justify-center gap-2">
+                        <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
+                        Tukar Posisi Gambar (Kiri ↔ Kanan)
+                    </button>
+
+                </div>
+
+                <!-- TAB 2: KERTAS, MARGIN & JARAK TENGAH -->
+                <div id="tab-paper" class="tab-content hidden space-y-5">
+                    
+                    <!-- Pilihan Ukuran Kertas -->
+                    <div class="space-y-2">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Ukuran Kertas (Landscape)</label>
+                        <div class="grid grid-cols-2 gap-2.5">
+                            <button type="button" class="paper-size-btn active p-3 rounded-xl border-2 border-indigo-600 bg-indigo-50/70 text-left transition" data-size="A4">
+                                <div class="font-bold text-sm text-indigo-950">Kertas A4</div>
+                                <div class="text-xs text-indigo-700 mt-0.5">297 mm × 210 mm</div>
+                            </button>
+                            <button type="button" class="paper-size-btn p-3 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 text-left transition" data-size="F4">
+                                <div class="font-bold text-sm text-slate-800">Kertas F4 / Folio</div>
+                                <div class="text-xs text-slate-500 mt-0.5">330 mm × 215 mm</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Pengaturan Margin Kertas (mm) -->
+                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-bold uppercase tracking-wider text-slate-600">Margin Tepi Kertas (mm)</label>
+                            <button type="button" id="btn-sync-margins" class="text-[11px] font-medium text-indigo-600 hover:underline">Samakan Semua (10mm)</button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-slate-600 mb-1">Margin Atas</label>
+                                <div class="relative">
+                                    <input type="number" id="margin-top" value="10" min="0" max="50" step="1" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                    <span class="absolute right-3 top-1.5 text-xs text-slate-400">mm</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-600 mb-1">Margin Bawah</label>
+                                <div class="relative">
+                                    <input type="number" id="margin-bottom" value="10" min="0" max="50" step="1" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                    <span class="absolute right-3 top-1.5 text-xs text-slate-400">mm</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-600 mb-1">Margin Kiri</label>
+                                <div class="relative">
+                                    <input type="number" id="margin-left" value="10" min="0" max="50" step="1" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                    <span class="absolute right-3 top-1.5 text-xs text-slate-400">mm</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-600 mb-1">Margin Kanan</label>
+                                <div class="relative">
+                                    <input type="number" id="margin-right" value="10" min="0" max="50" step="1" class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                    <span class="absolute right-3 top-1.5 text-xs text-slate-400">mm</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pengaturan Jarak Tengah (Gap) -->
+                    <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <label for="center-gap" class="text-xs font-bold uppercase tracking-wider text-slate-600">Jarak Tengah (Gap)</label>
+                            <span id="gap-value-label" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">20 mm</span>
+                        </div>
+                        <input type="range" id="center-gap" min="0" max="60" value="20" step="1" class="w-full accent-indigo-600 cursor-pointer">
+                        <p class="text-[11px] text-slate-500 leading-relaxed">
+                            Tips: Atur jarak tengah <strong>2× margin tepi</strong> (misal margin tepi 10mm, jarak tengah 20mm) agar saat kertas dipotong tepat di tengah, hasil potongan kiri & kanan memiliki tepi simetris 10mm.
+                        </p>
+                    </div>
+
+                    <!-- Opsi Tambahan (Garis Potong & Bingkai) -->
+                    <div class="space-y-3 pt-1">
+                        <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
+                            <div>
+                                <div class="text-sm font-semibold text-slate-800">Garis Bantu Potong Tengah</div>
+                                <div class="text-xs text-slate-500">Garis putus-putus vertikal di tengah kertas</div>
+                            </div>
+                            <input type="checkbox" id="toggle-cut-line" checked class="w-4 h-4 accent-indigo-600 rounded cursor-pointer">
+                        </label>
+
+                        <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-white cursor-pointer hover:bg-slate-50">
+                            <div>
+                                <div class="text-sm font-semibold text-slate-800">Bingkai / Border Gambar</div>
+                                <div class="text-xs text-slate-500">Garis tepi tipis mengelilingi tiap area gambar</div>
+                            </div>
+                            <input type="checkbox" id="toggle-border" class="w-4 h-4 accent-indigo-600 rounded cursor-pointer">
+                        </label>
+                    </div>
+
+                </div>
+
+                <!-- TAB 3: PENGATURAN PROPORSIONAL, ZOOM & POSISI PER SLOT -->
+                <div id="tab-adjust" class="tab-content hidden space-y-4">
+                    
+                    <!-- Sub-pilihan Slot yang sedang diedit -->
+                    <div class="flex rounded-lg bg-slate-100 p-1">
+                        <button type="button" class="slot-select-btn flex-1 py-1.5 text-xs font-semibold rounded-md bg-white text-slate-900 shadow-sm transition" data-slot="left">
+                            Edit Sisi Kiri
+                        </button>
+                        <button type="button" class="slot-select-btn flex-1 py-1.5 text-xs font-semibold rounded-md text-slate-600 hover:text-slate-900 transition" data-slot="right">
+                            Edit Sisi Kanan
+                        </button>
+                    </div>
+
+                    <div id="slot-controls-container" class="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                            <span id="editing-slot-title" class="text-sm font-bold text-indigo-700">Pengaturan Gambar Kiri</span>
+                            <button type="button" id="btn-reset-slot" class="text-xs text-slate-500 hover:text-slate-800 underline">Reset Slot Ini</button>
+                        </div>
+
+                        <!-- Mode Penyesuaian -->
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-semibold text-slate-700">Mode Penyesuaian Gambar</label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <button type="button" class="fit-mode-btn py-2 px-2 text-xs font-medium rounded-lg border border-indigo-600 bg-indigo-50 text-indigo-700" data-fit="contain">
+                                    Utuh (Fit)
+                                </button>
+                                <button type="button" class="fit-mode-btn py-2 px-2 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50" data-fit="cover">
+                                    Penuh (Fill)
+                                </button>
+                                <button type="button" class="fit-mode-btn py-2 px-2 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50" data-fit="stretch">
+                                    Regang
+                                </button>
+                            </div>
+                            <p id="fit-mode-desc" class="text-[11px] text-slate-500">Seluruh gambar ditampilkan utuh secara proporsional tanpa terpotong.</p>
+                        </div>
+
+                        <!-- Rotasi -->
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-semibold text-slate-700">Rotasi Gambar</label>
+                            <div class="grid grid-cols-4 gap-2">
+                                <button type="button" class="rotate-btn py-1.5 text-xs font-medium rounded-lg border border-indigo-600 bg-indigo-50 text-indigo-700" data-deg="0">0°</button>
+                                <button type="button" class="rotate-btn py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700" data-deg="90">90°</button>
+                                <button type="button" class="rotate-btn py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700" data-deg="180">180°</button>
+                                <button type="button" class="rotate-btn py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700" data-deg="270">270°</button>
+                            </div>
+                        </div>
+
+                        <!-- Zoom / Skala -->
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs">
+                                <label class="font-semibold text-slate-700">Zoom / Skala</label>
+                                <span id="val-zoom" class="font-mono text-indigo-600 font-semibold">100%</span>
+                            </div>
+                            <input type="range" id="slider-zoom" min="50" max="250" value="100" step="1" class="w-full accent-indigo-600 cursor-pointer">
+                        </div>
+
+                        <!-- Geser X -->
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs">
+                                <label class="font-semibold text-slate-700">Geser Horizontal (Kiri / Kanan)</label>
+                                <span id="val-offset-x" class="font-mono text-slate-600">0 mm</span>
+                            </div>
+                            <input type="range" id="slider-offset-x" min="-100" max="100" value="0" step="1" class="w-full accent-indigo-600 cursor-pointer">
+                        </div>
+
+                        <!-- Geser Y -->
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs">
+                                <label class="font-semibold text-slate-700">Geser Vertikal (Atas / Bawah)</label>
+                                <span id="val-offset-y" class="font-mono text-slate-600">0 mm</span>
+                            </div>
+                            <input type="range" id="slider-offset-y" min="-100" max="100" value="0" step="1" class="w-full accent-indigo-600 cursor-pointer">
+                        </div>
+
+                        <button type="button" id="btn-apply-settings-both" class="w-full py-2 px-3 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-medium transition">
+                            Terapkan Pengaturan Ini ke Kedua Sisi
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Info Dimensi Area Cetak (Footer Sidebar) -->
+            <div class="p-3 bg-slate-100 border-t border-slate-200 text-[11px] text-slate-600 flex items-center justify-between shrink-0">
+                <span>Ukuran 1 Slot Gambar:</span>
+                <span id="slot-dimension-info" class="font-mono font-bold text-slate-800">128.5 × 190.0 mm</span>
+            </div>
+        </aside>
+
+        <!-- Area Pratinjau Langsung (Live Preview Canvas) -->
+        <main id="preview-workspace" class="flex-1 bg-slate-200/80 relative flex flex-col items-center justify-center p-4 sm:p-8 overflow-hidden select-none">
+            
+            <!-- Info Bar di atas Kertas -->
+            <div class="mb-3 px-3 py-1.5 bg-white/90 backdrop-blur rounded-full shadow-sm border border-slate-200/80 text-xs text-slate-600 flex items-center gap-3 no-print">
+                <span id="preview-paper-label" class="font-semibold text-slate-800">A4 Landscape (297 × 210 mm)</span>
+                <span class="text-slate-300">|</span>
+                <span id="preview-zoom-ratio">Skala Tampilan: 100%</span>
+            </div>
+
+            <!-- Wrapper yang di-scale secara responsif oleh JavaScript -->
+            <div id="paper-scale-wrapper" class="origin-center transition-transform duration-150 shadow-2xl">
+                
+                <!-- Lembar Kertas Fisik (Ukuran asli dalam mm) -->
+                <div id="paper-sheet" class="bg-white relative overflow-hidden" style="width: 297mm; height: 210mm;">
+                    
+                    <!-- Garis Panduan Margin (Hanya tampil di layar, hilang saat print) -->
+                    <div id="margin-guide" class="margin-guide-box absolute border border-dashed border-sky-300 pointer-events-none z-10" style="top: 10mm; bottom: 10mm; left: 10mm; right: 10mm;"></div>
+
+                    <!-- Garis Bantu Potong Tengah -->
+                    <div id="center-cut-line" class="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 border-l-2 border-dashed border-slate-400 pointer-events-none z-20 flex flex-col justify-between items-center py-2">
+                        <span class="bg-white/80 px-1 text-[9px] text-slate-500 font-mono no-print">✂ POTONG</span>
+                        <span class="bg-white/80 px-1 text-[9px] text-slate-500 font-mono no-print">✂</span>
+                    </div>
+
+                    <!-- Kontainer Grid 2 Kolom (Kiri & Kanan) -->
+                    <div id="slots-wrapper" class="absolute grid grid-cols-2" style="top: 10mm; bottom: 10mm; left: 10mm; right: 10mm; column-gap: 20mm;">
+                        
+                        <!-- SLOT KIRI -->
+                        <div id="slot-left" class="slot-container relative w-full h-full bg-slate-50 overflow-hidden flex items-center justify-center cursor-pointer group" data-slot="left">
+                            <!-- Placeholder jika belum ada gambar -->
+                            <div id="placeholder-left" class="slot-placeholder text-center p-4 pointer-events-none">
+                                <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mx-auto mb-2 group-hover:scale-110 transition">
+                                    <i data-lucide="image-plus" class="w-6 h-6"></i>
+                                </div>
+                                <p class="text-sm font-semibold text-slate-700">Area Gambar Kiri</p>
+                                <p class="text-xs text-slate-400 mt-1">Klik di sini untuk memilih gambar</p>
+                            </div>
+                            <!-- Elemen Gambar Kiri -->
+                            <img id="img-left" src="" alt="Gambar Kiri" class="hidden max-w-none select-none pointer-events-none">
+                        </div>
+
+                        <!-- SLOT KANAN -->
+                        <div id="slot-right" class="slot-container relative w-full h-full bg-slate-50 overflow-hidden flex items-center justify-center cursor-pointer group" data-slot="right">
+                            <!-- Placeholder jika belum ada gambar -->
+                            <div id="placeholder-right" class="slot-placeholder text-center p-4 pointer-events-none">
+                                <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-2 group-hover:scale-110 transition">
+                                    <i data-lucide="image-plus" class="w-6 h-6"></i>
+                                </div>
+                                <p class="text-sm font-semibold text-slate-700">Area Gambar Kanan</p>
+                                <p class="text-xs text-slate-400 mt-1">Klik di sini untuk memilih gambar</p>
+                            </div>
+                            <!-- Elemen Gambar Kanan -->
+                            <img id="img-right" src="" alt="Gambar Kanan" class="hidden max-w-none select-none pointer-events-none">
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toast Notifikasi -->
+            <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white text-xs font-medium px-4 py-3 rounded-xl shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center gap-2 no-print">
+                <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+                <span id="toast-message">Berhasil diperbarui</span>
+            </div>
+
+            <!-- Modal Bantuan Jika Popup Cetak Diblokir Browser / Iframe -->
+            <div id="print-help-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50 no-print">
+                <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-amber-100 text-amber-600 p-2.5 rounded-xl shrink-0">
+                            <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-900 text-base">Jendela Cetak Dibatasi Browser</h3>
+                            <p class="text-xs text-slate-600 mt-1 leading-relaxed">
+                                Browser atau lingkungan pratinjau memblokir pembukaan jendela cetak otomatis. Anda dapat menggunakan salah satu cara berikut untuk mencetak dengan ukuran presisi:
+                            </p>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-3.5 text-xs text-slate-700 space-y-2 border border-slate-200">
+                        <p><strong>1. Gunakan "Simpan PDF" (Direkomendasikan):</strong> Mengunduh file PDF ukuran asli (A4 / F4) yang bisa langsung dibuka dan dicetak dari perangkat Anda.</p>
+                        <p><strong>2. Izinkan Pop-up:</strong> Aktifkan izin <em>Pop-up</em> pada bilah alamat browser lalu tekan <strong>Cetak Halaman</strong> kembali.</p>
+                    </div>
+                    <div class="flex items-center justify-end gap-2 pt-2">
+                        <button type="button" id="btn-close-print-modal" class="px-3.5 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition">Tutup</button>
+                        <button type="button" id="btn-modal-download-pdf" class="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition flex items-center gap-1.5">
+                            <i data-lucide="file-down" class="w-4 h-4"></i>
+                            <span>Simpan PDF Sekarang</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Script Utama Aplikasi -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Inisialisasi ikon Lucide
+            lucide.createIcons();
+
+            // Konstanta Ukuran Kertas dalam milimeter (Landscape)
+            const PAPER_SIZES = {
+                A4: { width: 297, height: 210, label: 'A4 Landscape (297 × 210 mm)' },
+                F4: { width: 330, height: 215, label: 'F4 / Folio Landscape (330 × 215 mm)' }
+            };
+
+            // State Aplikasi
+            const state = {
+                paperSize: 'A4',
+                margins: { top: 10, bottom: 10, left: 10, right: 10 },
+                centerGap: 20,
+                showCutLine: true,
+                showBorder: false,
+                activeSlot: 'left', // Slot yang sedang diedit di tab 3
+                slots: {
+                    left: {
+                        src: null,
+                        imgElement: null, // Objek Image() asli untuk kalkulasi dimensi & ekspor
+                        fit: 'contain',   // 'contain', 'cover', 'stretch'
+                        zoom: 100,        // persen
+                        offsetX: 0,       // mm
+                        offsetY: 0,       // mm
+                        rotation: 0       // 0, 90, 180, 270
+                    },
+                    right: {
+                        src: null,
+                        imgElement: null,
+                        fit: 'contain',
+                        zoom: 100,
+                        offsetX: 0,
+                        offsetY: 0,
+                        rotation: 0
+                    }
+                }
+            };
+
+            // Referensi Elemen DOM
+            const dom = {
+                workspace: document.getElementById('preview-workspace'),
+                scaleWrapper: document.getElementById('paper-scale-wrapper'),
+                paperSheet: document.getElementById('paper-sheet'),
+                marginGuide: document.getElementById('margin-guide'),
+                centerCutLine: document.getElementById('center-cut-line'),
+                slotsWrapper: document.getElementById('slots-wrapper'),
+                dynamicPageStyle: document.getElementById('dynamic-page-style'),
+                previewPaperLabel: document.getElementById('preview-paper-label'),
+                previewZoomRatio: document.getElementById('preview-zoom-ratio'),
+                slotDimensionInfo: document.getElementById('slot-dimension-info'),
+                toast: document.getElementById('toast'),
+                toastMessage: document.getElementById('toast-message'),
+                
+                // Slot Left & Right
+                slotLeft: document.getElementById('slot-left'),
+                slotRight: document.getElementById('slot-right'),
+                imgLeft: document.getElementById('img-left'),
+                imgRight: document.getElementById('img-right'),
+                placeholderLeft: document.getElementById('placeholder-left'),
+                placeholderRight: document.getElementById('placeholder-right'),
+                inputLeft: document.getElementById('input-img-left'),
+                inputRight: document.getElementById('input-img-right'),
+                btnClearLeft: document.getElementById('btn-clear-left'),
+                btnClearRight: document.getElementById('btn-clear-right'),
+                btnCopyLeftToRight: document.getElementById('btn-copy-left-to-right'),
+                btnCopyRightToLeft: document.getElementById('btn-copy-right-to-left'),
+
+                // Margin & Gap Inputs
+                marginTop: document.getElementById('margin-top'),
+                marginBottom: document.getElementById('margin-bottom'),
+                marginLeft: document.getElementById('margin-left'),
+                marginRight: document.getElementById('margin-right'),
+                centerGap: document.getElementById('center-gap'),
+                gapValueLabel: document.getElementById('gap-value-label'),
+                toggleCutLine: document.getElementById('toggle-cut-line'),
+                toggleBorder: document.getElementById('toggle-border'),
+
+                // Adjust Tab Controls
+                editingSlotTitle: document.getElementById('editing-slot-title'),
+                fitModeDesc: document.getElementById('fit-mode-desc'),
+                sliderZoom: document.getElementById('slider-zoom'),
+                valZoom: document.getElementById('val-zoom'),
+                sliderOffsetX: document.getElementById('slider-offset-x'),
+                valOffsetX: document.getElementById('val-offset-x'),
+                sliderOffsetY: document.getElementById('slider-offset-y'),
+                valOffsetY: document.getElementById('val-offset-y')
+            };
+
+            // Fungsi Menampilkan Notifikasi Toast
+            let toastTimeout;
+            function showToast(msg) {
+                dom.toastMessage.textContent = msg;
+                dom.toast.classList.remove('translate-y-20', 'opacity-0');
+                clearTimeout(toastTimeout);
+                toastTimeout = setTimeout(() => {
+                    dom.toast.classList.add('translate-y-20', 'opacity-0');
+                }, 3200);
+            }
+
+            // Kontrol Modal Bantuan Cetak
+            const printHelpModal = document.getElementById('print-help-modal');
+            function togglePrintModal(show) {
+                if (show) {
+                    printHelpModal.classList.remove('hidden');
+                    printHelpModal.classList.add('flex');
+                } else {
+                    printHelpModal.classList.add('hidden');
+                    printHelpModal.classList.remove('flex');
+                }
+            }
+            document.getElementById('btn-close-print-modal').addEventListener('click', () => togglePrintModal(false));
+            document.getElementById('btn-modal-download-pdf').addEventListener('click', () => {
+                togglePrintModal(false);
+                exportToPDF();
+            });
+
+            // Navigasi Tab
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.tab-btn').forEach(b => {
+                        b.classList.remove('active', 'border-indigo-600', 'text-indigo-600');
+                        b.classList.add('border-transparent', 'text-slate-500');
+                    });
+                    btn.classList.add('active', 'border-indigo-600', 'text-indigo-600');
+                    btn.classList.remove('border-transparent', 'text-slate-500');
+
+                    const targetId = btn.getAttribute('data-tab');
+                    document.querySelectorAll('.tab-content').forEach(tc => tc.classList.add('hidden'));
+                    document.getElementById(targetId).classList.remove('hidden');
+                });
+            });
+
+            // Fungsi Menghitung Dimensi 1 Slot dalam mm
+            function getSlotDimensionsMM() {
+                const paper = PAPER_SIZES[state.paperSize];
+                const contentWidth = paper.width - state.margins.left - state.margins.right;
+                const slotWidth = Math.max(10, (contentWidth - state.centerGap) / 2);
+                const slotHeight = Math.max(10, paper.height - state.margins.top - state.margins.bottom);
+                return { width: slotWidth, height: slotHeight };
+            }
+
+            // Update Tata Letak Kertas, Margin, Gap, dan @page CSS
+            function updatePaperLayout() {
+                const paper = PAPER_SIZES[state.paperSize];
+                const { top, bottom, left, right } = state.margins;
+                const gap = state.centerGap;
+
+                // Update CSS @page untuk pencetakan akurat
+                dom.dynamicPageStyle.textContent = `
+                    @page {
+                        size: ${paper.width}mm ${paper.height}mm;
+                        margin: 0;
+                    }
+                `;
+
+                // Set ukuran lembar kertas di DOM
+                dom.paperSheet.style.width = `${paper.width}mm`;
+                dom.paperSheet.style.height = `${paper.height}mm`;
+                dom.previewPaperLabel.textContent = paper.label;
+
+                // Update posisi panduan margin & container slot
+                const posStyle = `top: ${top}mm; bottom: ${bottom}mm; left: ${left}mm; right: ${right}mm;`;
+                dom.marginGuide.style.cssText = posStyle;
+                dom.slotsWrapper.style.cssText = `${posStyle} column-gap: ${gap}mm;`;
+
+                // Garis potong tengah
+                dom.centerCutLine.style.display = state.showCutLine ? 'flex' : 'none';
+
+                // Bingkai / Border di sekitar slot gambar
+                const borderClass = state.showBorder ? 'border border-slate-800' : 'border-0';
+                dom.slotLeft.className = `slot-container relative w-full h-full bg-slate-50 overflow-hidden flex items-center justify-center cursor-pointer group ${borderClass}`;
+                dom.slotRight.className = `slot-container relative w-full h-full bg-slate-50 overflow-hidden flex items-center justify-center cursor-pointer group ${borderClass}`;
+
+                // Tampilkan dimensi 1 slot
+                const slotDim = getSlotDimensionsMM();
+                dom.slotDimensionInfo.textContent = `${slotDim.width.toFixed(1)} × ${slotDim.height.toFixed(1)} mm`;
+
+                // Render ulang gambar di kedua slot agar proporsinya menyesuaikan ukuran slot baru
+                renderSlotImage('left');
+                renderSlotImage('right');
+
+                // Sesuaikan skala kertas agar pas di layar
+                fitPaperToScreen();
+            }
+
+            // Skala Kertas Responsif agar muat di area Preview tanpa scroll
+            function fitPaperToScreen() {
+                // Jangan jalankan saat sedang mode print
+                if (window.matchMedia('print').matches) return;
+
+                const workspaceRect = dom.workspace.getBoundingClientRect();
+                // Sisakan ruang padding atas/bawah untuk label info
+                const availWidth = workspaceRect.width - 32;
+                const availHeight = workspaceRect.height - 64;
+
+                // Dapatkan ukuran aktual elemen kertas dalam pixel (konversi mm ke px oleh browser)
+                const paperWidthPx = dom.paperSheet.offsetWidth;
+                const paperHeightPx = dom.paperSheet.offsetHeight;
+
+                if (paperWidthPx === 0 || paperHeightPx === 0) return;
+
+                const scaleX = availWidth / paperWidthPx;
+                const scaleY = availHeight / paperHeightPx;
+                const scale = Math.min(scaleX, scaleY, 1.15); // Batasi maksimal 115%
+
+                dom.scaleWrapper.style.transform = `scale(${scale})`;
+                dom.previewZoomRatio.textContent = `Skala Tampilan: ${Math.round(scale * 100)}%`;
+            }
+
+            window.addEventListener('resize', fitPaperToScreen);
+
+            // Render & Hitung Transformasi Gambar di dalam Slot (dalam satuan mm)
+            function renderSlotImage(slotKey) {
+                const slotData = state.slots[slotKey];
+                const imgEl = slotKey === 'left' ? dom.imgLeft : dom.imgRight;
+                const placeholderEl = slotKey === 'left' ? dom.placeholderLeft : dom.placeholderRight;
+
+                if (!slotData.src || !slotData.imgElement) {
+                    imgEl.classList.add('hidden');
+                    placeholderEl.classList.remove('hidden');
+                    return;
+                }
+
+                imgEl.src = slotData.src;
+                imgEl.classList.remove('hidden');
+                placeholderEl.classList.add('hidden');
+
+                const slotDim = getSlotDimensionsMM();
+                const natW = slotData.imgElement.naturalWidth;
+                const natH = slotData.imgElement.naturalHeight;
+                const isRotated90or270 = (slotData.rotation === 90 || slotData.rotation === 270);
+
+                // Dimensi efektif gambar setelah rotasi
+                const effW = isRotated90or270 ? natH : natW;
+                const effH = isRotated90or270 ? natW : natH;
+
+                let baseWidthMM, baseHeightMM;
+
+                if (slotData.fit === 'stretch') {
+                    // Regang memenuhi kotak slot
+                    baseWidthMM = isRotated90or270 ? slotDim.height : slotDim.width;
+                    baseHeightMM = isRotated90or270 ? slotDim.width : slotDim.height;
+                } else {
+                    // Hitung rasio skala proporsional
+                    const ratioW = slotDim.width / effW;
+                    const ratioH = slotDim.height / effH;
+                    const scaleFactor = slotData.fit === 'contain' 
+                        ? Math.min(ratioW, ratioH) 
+                        : Math.max(ratioW, ratioH);
+
+                    // Ukuran asli elemen <img> sebelum diputar CSS
+                    baseWidthMM = natW * scaleFactor;
+                    baseHeightMM = natH * scaleFactor;
+                }
+
+                const zoomFactor = slotData.zoom / 100;
+                const finalW = baseWidthMM * zoomFactor;
+                const finalH = baseHeightMM * zoomFactor;
+
+                imgEl.style.width = `${finalW}mm`;
+                imgEl.style.height = `${finalH}mm`;
+                imgEl.style.transform = `translate(${slotData.offsetX}mm, ${slotData.offsetY}mm) rotate(${slotData.rotation}deg)`;
+            }
+
+            // Handler Unggah File Gambar
+            function handleImageUpload(file, slotKey) {
+                if (!file || !file.type.startsWith('image/')) {
+                    showToast('Harap pilih file gambar yang valid (JPG, PNG, WEBP).');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        state.slots[slotKey].src = e.target.result;
+                        state.slots[slotKey].imgElement = img;
+                        // Reset transformasi saat gambar baru diunggah
+                        state.slots[slotKey].zoom = 100;
+                        state.slots[slotKey].offsetX = 0;
+                        state.slots[slotKey].offsetY = 0;
+                        state.slots[slotKey].rotation = 0;
+
+                        updateUploadButtonsUI();
+                        renderSlotImage(slotKey);
+                        if (state.activeSlot === slotKey) {
+                            syncAdjustTabUI();
+                        }
+                        showToast(`Gambar sisi ${slotKey === 'left' ? 'Kiri' : 'Kanan'} berhasil dimuat!`);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+
+            function updateUploadButtonsUI() {
+                const hasLeft = Boolean(state.slots.left.src);
+                const hasRight = Boolean(state.slots.right.src);
+
+                dom.btnClearLeft.classList.toggle('hidden', !hasLeft);
+                dom.btnClearRight.classList.toggle('hidden', !hasRight);
+                dom.btnCopyLeftToRight.disabled = !hasLeft;
+                dom.btnCopyRightToLeft.disabled = !hasRight;
+            }
+
+            // Event Listener Input File
+            dom.inputLeft.addEventListener('change', (e) => handleImageUpload(e.target.files[0], 'left'));
+            dom.inputRight.addEventListener('change', (e) => handleImageUpload(e.target.files[0], 'right'));
+
+            // Klik langsung pada area kertas untuk unggah atau pilih edit slot
+            dom.slotLeft.addEventListener('click', () => {
+                if (!state.slots.left.src) {
+                    dom.inputLeft.click();
+                } else {
+                    selectSlotToEdit('left');
+                    document.querySelector('[data-tab="tab-adjust"]').click();
+                }
+            });
+
+            dom.slotRight.addEventListener('click', () => {
+                if (!state.slots.right.src) {
+                    dom.inputRight.click();
+                } else {
+                    selectSlotToEdit('right');
+                    document.querySelector('[data-tab="tab-adjust"]').click();
+                }
+            });
+
+            // Tombol Hapus Gambar
+            dom.btnClearLeft.addEventListener('click', () => {
+                state.slots.left.src = null;
+                state.slots.left.imgElement = null;
+                dom.inputLeft.value = '';
+                updateUploadButtonsUI();
+                renderSlotImage('left');
+                showToast('Gambar kiri dihapus.');
+            });
+
+            dom.btnClearRight.addEventListener('click', () => {
+                state.slots.right.src = null;
+                state.slots.right.imgElement = null;
+                dom.inputRight.value = '';
+                updateUploadButtonsUI();
+                renderSlotImage('right');
+                showToast('Gambar kanan dihapus.');
+            });
+
+            // Tombol Gunakan Gambar yang Sama untuk Keduanya
+            function copySlot(fromKey, toKey) {
+                const source = state.slots[fromKey];
+                if (!source.src) return;
+
+                state.slots[toKey] = {
+                    ...source
+                };
+                updateUploadButtonsUI();
+                renderSlotImage(toKey);
+                syncAdjustTabUI();
+                showToast('Gambar berhasil diduplikasi ke kedua sisi!');
+            }
+
+            dom.btnCopyLeftToRight.addEventListener('click', () => copySlot('left', 'right'));
+            dom.btnCopyRightToLeft.addEventListener('click', () => copySlot('right', 'left'));
+
+            // Tukar Posisi Kiri <-> Kanan
+            document.getElementById('btn-swap-images').addEventListener('click', () => {
+                const temp = { ...state.slots.left };
+                state.slots.left = { ...state.slots.right };
+                state.slots.right = temp;
+
+                updateUploadButtonsUI();
+                renderSlotImage('left');
+                renderSlotImage('right');
+                syncAdjustTabUI();
+                showToast('Posisi gambar kiri dan kanan ditukar.');
+            });
+
+            // Pilihan Ukuran Kertas (A4 / F4)
+            document.querySelectorAll('.paper-size-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.paper-size-btn').forEach(b => {
+                        b.classList.remove('active', 'border-indigo-600', 'bg-indigo-50/70');
+                        b.classList.add('border-slate-200', 'bg-white');
+                        b.querySelector('div:first-child').classList.replace('text-indigo-950', 'text-slate-800');
+                        b.querySelector('div:last-child').classList.replace('text-indigo-700', 'text-slate-500');
+                    });
+
+                    btn.classList.add('active', 'border-indigo-600', 'bg-indigo-50/70');
+                    btn.classList.remove('border-slate-200', 'bg-white');
+                    btn.querySelector('div:first-child').classList.replace('text-slate-800', 'text-indigo-950');
+                    btn.querySelector('div:last-child').classList.replace('text-slate-500', 'text-indigo-700');
+
+                    state.paperSize = btn.getAttribute('data-size');
+                    updatePaperLayout();
+                });
+            });
+
+            // Input Margin & Gap
+            function bindMarginInput(inputEl, side) {
+                inputEl.addEventListener('input', () => {
+                    let val = parseFloat(inputEl.value);
+                    if (isNaN(val) || val < 0) val = 0;
+                    if (val > 80) val = 80;
+                    state.margins[side] = val;
+                    updatePaperLayout();
+                });
+            }
+            bindMarginInput(dom.marginTop, 'top');
+            bindMarginInput(dom.marginBottom, 'bottom');
+            bindMarginInput(dom.marginLeft, 'left');
+            bindMarginInput(dom.marginRight, 'right');
+
+            document.getElementById('btn-sync-margins').addEventListener('click', () => {
+                state.margins = { top: 10, bottom: 10, left: 10, right: 10 };
+                dom.marginTop.value = 10;
+                dom.marginBottom.value = 10;
+                dom.marginLeft.value = 10;
+                dom.marginRight.value = 10;
+                updatePaperLayout();
+                showToast('Semua margin tepi diatur ke 10 mm.');
+            });
+
+            dom.centerGap.addEventListener('input', () => {
+                const val = parseInt(dom.centerGap.value, 10);
+                state.centerGap = val;
+                dom.gapValueLabel.textContent = `${val} mm`;
+                updatePaperLayout();
+            });
+
+            dom.toggleCutLine.addEventListener('change', () => {
+                state.showCutLine = dom.toggleCutLine.checked;
+                updatePaperLayout();
+            });
+
+            dom.toggleBorder.addEventListener('change', () => {
+                state.showBorder = dom.toggleBorder.checked;
+                updatePaperLayout();
+            });
+
+            // Kontrol Tab 3: Pilih Slot & Pengaturan Transformasi
+            function selectSlotToEdit(slotKey) {
+                state.activeSlot = slotKey;
+                document.querySelectorAll('.slot-select-btn').forEach(btn => {
+                    const isSelected = btn.getAttribute('data-slot') === slotKey;
+                    btn.classList.toggle('bg-white', isSelected);
+                    btn.classList.toggle('text-slate-900', isSelected);
+                    btn.classList.toggle('shadow-sm', isSelected);
+                    btn.classList.toggle('text-slate-600', !isSelected);
+                });
+                dom.editingSlotTitle.textContent = slotKey === 'left' ? 'Pengaturan Gambar Kiri' : 'Pengaturan Gambar Kanan';
+                syncAdjustTabUI();
+            }
+
+            document.querySelectorAll('.slot-select-btn').forEach(btn => {
+                btn.addEventListener('click', () => selectSlotToEdit(btn.getAttribute('data-slot')));
+            });
+
+            function syncAdjustTabUI() {
+                const s = state.slots[state.activeSlot];
+
+                // Fit mode buttons
+                document.querySelectorAll('.fit-mode-btn').forEach(btn => {
+                    const active = btn.getAttribute('data-fit') === s.fit;
+                    btn.classList.toggle('border-indigo-600', active);
+                    btn.classList.toggle('bg-indigo-50', active);
+                    btn.classList.toggle('text-indigo-700', active);
+                    btn.classList.toggle('border-slate-200', !active);
+                    btn.classList.toggle('bg-white', !active);
+                    btn.classList.toggle('text-slate-700', !active);
+                });
+
+                const descriptions = {
+                    contain: 'Seluruh gambar ditampilkan utuh secara proporsional tanpa terpotong.',
+                    cover: 'Gambar diperbesar proporsional hingga memenuhi seluruh area slot.',
+                    stretch: 'Gambar diregangkan mengikuti lebar dan tinggi area slot.'
+                };
+                dom.fitModeDesc.textContent = descriptions[s.fit];
+
+                // Rotate buttons
+                document.querySelectorAll('.rotate-btn').forEach(btn => {
+                    const active = parseInt(btn.getAttribute('data-deg'), 10) === s.rotation;
+                    btn.classList.toggle('border-indigo-600', active);
+                    btn.classList.toggle('bg-indigo-50', active);
+                    btn.classList.toggle('text-indigo-700', active);
+                    btn.classList.toggle('border-slate-200', !active);
+                    btn.classList.toggle('bg-white', !active);
+                    btn.classList.toggle('text-slate-700', !active);
+                });
+
+                // Sliders
+                dom.sliderZoom.value = s.zoom;
+                dom.valZoom.textContent = `${s.zoom}%`;
+
+                dom.sliderOffsetX.value = s.offsetX;
+                dom.valOffsetX.textContent = `${s.offsetX} mm`;
+
+                dom.sliderOffsetY.value = s.offsetY;
+                dom.valOffsetY.textContent = `${s.offsetY} mm`;
+            }
+
+            document.querySelectorAll('.fit-mode-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    state.slots[state.activeSlot].fit = btn.getAttribute('data-fit');
+                    syncAdjustTabUI();
+                    renderSlotImage(state.activeSlot);
+                });
+            });
+
+            document.querySelectorAll('.rotate-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    state.slots[state.activeSlot].rotation = parseInt(btn.getAttribute('data-deg'), 10);
+                    syncAdjustTabUI();
+                    renderSlotImage(state.activeSlot);
+                });
+            });
+
+            dom.sliderZoom.addEventListener('input', () => {
+                const val = parseInt(dom.sliderZoom.value, 10);
+                state.slots[state.activeSlot].zoom = val;
+                dom.valZoom.textContent = `${val}%`;
+                renderSlotImage(state.activeSlot);
+            });
+
+            dom.sliderOffsetX.addEventListener('input', () => {
+                const val = parseInt(dom.sliderOffsetX.value, 10);
+                state.slots[state.activeSlot].offsetX = val;
+                dom.valOffsetX.textContent = `${val} mm`;
+                renderSlotImage(state.activeSlot);
+            });
+
+            dom.sliderOffsetY.addEventListener('input', () => {
+                const val = parseInt(dom.sliderOffsetY.value, 10);
+                state.slots[state.activeSlot].offsetY = val;
+                dom.valOffsetY.textContent = `${val} mm`;
+                renderSlotImage(state.activeSlot);
+            });
+
+            document.getElementById('btn-reset-slot').addEventListener('click', () => {
+                const s = state.slots[state.activeSlot];
+                s.fit = 'contain';
+                s.zoom = 100;
+                s.offsetX = 0;
+                s.offsetY = 0;
+                s.rotation = 0;
+                syncAdjustTabUI();
+                renderSlotImage(state.activeSlot);
+                showToast('Pengaturan slot dikembalikan ke awal.');
+            });
+
+            document.getElementById('btn-apply-settings-both').addEventListener('click', () => {
+                const source = state.slots[state.activeSlot];
+                const targetKey = state.activeSlot === 'left' ? 'right' : 'left';
+                state.slots[targetKey].fit = source.fit;
+                state.slots[targetKey].zoom = source.zoom;
+                state.slots[targetKey].offsetX = source.offsetX;
+                state.slots[targetKey].offsetY = source.offsetY;
+                state.slots[targetKey].rotation = source.rotation;
+                renderSlotImage(targetKey);
+                showToast('Pengaturan skala & posisi diterapkan ke kedua sisi.');
+            });
+
+            // Tombol Reset Keseluruhan
+            document.getElementById('btn-reset').addEventListener('click', () => {
+                state.paperSize = 'A4';
+                state.margins = { top: 10, bottom: 10, left: 10, right: 10 };
+                state.centerGap = 20;
+                state.showCutLine = true;
+                state.showBorder = false;
+                
+                ['left', 'right'].forEach(k => {
+                    state.slots[k] = {
+                        src: null, imgElement: null, fit: 'contain',
+                        zoom: 100, offsetX: 0, offsetY: 0, rotation: 0
+                    };
+                });
+
+                dom.inputLeft.value = '';
+                dom.inputRight.value = '';
+                dom.marginTop.value = 10;
+                dom.marginBottom.value = 10;
+                dom.marginLeft.value = 10;
+                dom.marginRight.value = 10;
+                dom.centerGap.value = 20;
+                dom.gapValueLabel.textContent = '20 mm';
+                dom.toggleCutLine.checked = true;
+                dom.toggleBorder.checked = false;
+
+                document.querySelector('.paper-size-btn[data-size="A4"]').click();
+                updateUploadButtonsUI();
+                syncAdjustTabUI();
+                updatePaperLayout();
+                showToast('Semua pengaturan berhasil di-reset.');
+            });
+
+            // Fungsi Inti: Render Lembar Kertas Presisi Tinggi ke Elemen Canvas
+            function renderPaperToCanvas(pxPerMM = 11.811) { // ~300 DPI standar cetak
+                const paper = PAPER_SIZES[state.paperSize];
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.round(paper.width * pxPerMM);
+                canvas.height = Math.round(paper.height * pxPerMM);
+                const ctx = canvas.getContext('2d');
+
+                // Latar belakang putih kertas
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const slotDim = getSlotDimensionsMM();
+                const slotW_px = slotDim.width * pxPerMM;
+                const slotH_px = slotDim.height * pxPerMM;
+
+                const leftX_px = state.margins.left * pxPerMM;
+                const rightX_px = (state.margins.left + slotDim.width + state.centerGap) * pxPerMM;
+                const topY_px = state.margins.top * pxPerMM;
+
+                function drawSlotToCanvas(slotKey, x_px, y_px) {
+                    const s = state.slots[slotKey];
+
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(x_px, y_px, slotW_px, slotH_px);
+                    ctx.clip();
+
+                    if (s.src && s.imgElement) {
+                        const natW = s.imgElement.naturalWidth;
+                        const natH = s.imgElement.naturalHeight;
+                        const isRot = (s.rotation === 90 || s.rotation === 270);
+                        const effW = isRot ? natH : natW;
+                        const effH = isRot ? natW : natH;
+
+                        let drawW, drawH;
+                        if (s.fit === 'stretch') {
+                            drawW = isRot ? slotH_px : slotW_px;
+                            drawH = isRot ? slotW_px : slotH_px;
+                        } else {
+                            const rW = slotW_px / effW;
+                            const rH = slotH_px / effH;
+                            const scale = s.fit === 'contain' ? Math.min(rW, rH) : Math.max(rW, rH);
+                            drawW = natW * scale;
+                            drawH = natH * scale;
+                        }
+
+                        const zoomFactor = s.zoom / 100;
+                        drawW *= zoomFactor;
+                        drawH *= zoomFactor;
+
+                        const centerX = x_px + (slotW_px / 2) + (s.offsetX * pxPerMM);
+                        const centerY = y_px + (slotH_px / 2) + (s.offsetY * pxPerMM);
+
+                        ctx.translate(centerX, centerY);
+                        ctx.rotate((s.rotation * Math.PI) / 180);
+                        ctx.drawImage(s.imgElement, -drawW / 2, -drawH / 2, drawW, drawH);
+                    }
+
+                    ctx.restore();
+
+                    if (state.showBorder) {
+                        ctx.save();
+                        ctx.strokeStyle = '#1e293b';
+                        ctx.lineWidth = Math.max(2, Math.round(pxPerMM * 0.25));
+                        ctx.strokeRect(x_px, y_px, slotW_px, slotH_px);
+                        ctx.restore();
+                    }
+                }
+
+                drawSlotToCanvas('left', leftX_px, topY_px);
+                drawSlotToCanvas('right', rightX_px, topY_px);
+
+                if (state.showCutLine) {
+                    ctx.save();
+                    ctx.strokeStyle = '#94a3b8';
+                    ctx.lineWidth = Math.max(2, Math.round(pxPerMM * 0.25));
+                    ctx.setLineDash([Math.round(pxPerMM * 2), Math.round(pxPerMM * 2)]);
+                    ctx.beginPath();
+                    ctx.moveTo(canvas.width / 2, 0);
+                    ctx.lineTo(canvas.width / 2, canvas.height);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                return canvas;
+            }
+
+            // Tombol Cetak Halaman (Multi-Jalur: Jendela Baru + Fallback + Panduan)
+            document.getElementById('btn-print').addEventListener('click', () => {
+                showToast('Menyiapkan lembar cetak presisi...');
+                
+                setTimeout(() => {
+                    try {
+                        const paper = PAPER_SIZES[state.paperSize];
+                        const canvas = renderPaperToCanvas(11.811); // 300 DPI
+                        const dataUrl = canvas.toDataURL('image/png');
+
+                        // Jalur 1: Buka jendela/tab baru bersih khusus cetak (lolos batasan sandbox iframe)
+                        const printWin = window.open('', '_blank');
+
+                        if (printWin && !printWin.closed) {
+                            printWin.document.open();
+                            printWin.document.write(`
+                                <!DOCTYPE html>
+                                <html lang="id">
+                                <head>
+                                    <meta charset="UTF-8">
+                                    <title>Cetak ${paper.label}</title>
+                                    <style>
+                                        @page {
+                                            size: ${paper.width}mm ${paper.height}mm;
+                                            margin: 0;
+                                        }
+                                        * {
+                                            box-sizing: border-box;
+                                            margin: 0;
+                                            padding: 0;
+                                        }
+                                        html, body {
+                                            width: ${paper.width}mm;
+                                            height: ${paper.height}mm;
+                                            background: #ffffff;
+                                            overflow: hidden;
+                                        }
+                                        img {
+                                            display: block;
+                                            width: ${paper.width}mm;
+                                            height: ${paper.height}mm;
+                                            object-fit: fill;
+                                        }
+                                        @media screen {
+                                            html, body {
+                                                width: 100%;
+                                                height: 100%;
+                                                background: #e2e8f0;
+                                                display: flex;
+                                                flex-direction: column;
+                                                align-items: center;
+                                                justify-content: center;
+                                                font-family: sans-serif;
+                                            }
+                                            .toolbar {
+                                                position: fixed;
+                                                top: 16px;
+                                                background: #1e293b;
+                                                color: #fff;
+                                                padding: 10px 18px;
+                                                border-radius: 999px;
+                                                display: flex;
+                                                align-items: center;
+                                                gap: 12px;
+                                                box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+                                                font-size: 13px;
+                                                z-index: 100;
+                                            }
+                                            .toolbar button {
+                                                background: #4f46e5;
+                                                color: white;
+                                                border: none;
+                                                padding: 6px 14px;
+                                                border-radius: 999px;
+                                                font-weight: bold;
+                                                cursor: pointer;
+                                            }
+                                            img {
+                                                max-width: 95vw;
+                                                max-height: 85vh;
+                                                width: auto;
+                                                height: auto;
+                                                box-shadow: 0 20px 40px rgba(0,0,0,0.18);
+                                                background: white;
+                                            }
+                                        }
+                                        @media print {
+                                            .toolbar { display: none !important; }
+                                            img {
+                                                width: ${paper.width}mm !important;
+                                                height: ${paper.height}mm !important;
+                                                max-width: none !important;
+                                                max-height: none !important;
+                                                box-shadow: none !important;
+                                            }
+                                        }
+                                    </style>
+                                </head>
+                                <body>
+                                    <div class="toolbar">
+                                        <span>Siap Cetak: <strong>${paper.label}</strong></span>
+                                        <button onclick="window.print()">Cetak Sekarang</button>
+                                    </div>
+                                    <img id="print-img" src="${dataUrl}" alt="Lembar Cetak" />
+                                    <script>
+                                        window.onload = function() {
+                                            setTimeout(function() {
+                                                window.focus();
+                                                window.print();
+                                            }, 250);
+                                        };
+                                    <\/script>
+                                </body>
+                                </html>
+                            `);
+                            printWin.document.close();
+                        } else {
+                            // Jalur 2: Fallback jika popup diblokir browser
+                            try {
+                                window.focus();
+                                window.print();
+                            } catch (e) {
+                                console.warn('window.print fallback error:', e);
+                            }
+                            // Tampilkan modal bantuan jika dialog cetak tidak muncul karena sandbox/popup blocker
+                            togglePrintModal(true);
+                        }
+                    } catch (err) {
+                        console.error('Gagal memproses cetak:', err);
+                        try { window.print(); } catch (e) {}
+                        togglePrintModal(true);
+                    }
+                }, 50);
+            });
+
+            // Fungsi Ekspor ke File PDF Ukuran Fisik Asli (A4 / F4)
+            function exportToPDF() {
+                if (!window.jspdf || !window.jspdf.jsPDF) {
+                    showToast('Library PDF sedang dimuat, coba sesaat lagi.');
+                    return;
+                }
+
+                showToast('Membuat file PDF ukuran asli...');
+                setTimeout(() => {
+                    try {
+                        const { jsPDF } = window.jspdf;
+                        const paper = PAPER_SIZES[state.paperSize];
+                        const canvas = renderPaperToCanvas(11.811); // 300 DPI
+                        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+                        const pdf = new jsPDF({
+                            orientation: 'landscape',
+                            unit: 'mm',
+                            format: [paper.width, paper.height]
+                        });
+
+                        pdf.addImage(imgData, 'JPEG', 0, 0, paper.width, paper.height);
+                        pdf.save(`Cetak-2-Gambar-${state.paperSize}-Landscape.pdf`);
+                        showToast(`PDF ${paper.label} berhasil diunduh!`);
+                    } catch (err) {
+                        console.error(err);
+                        showToast('Gagal membuat file PDF.');
+                    }
+                }, 50);
+            }
+
+            document.getElementById('btn-pdf').addEventListener('click', exportToPDF);
+
+            // Tombol Unduh sebagai Gambar PNG Resolusi Tinggi
+            document.getElementById('btn-download').addEventListener('click', () => {
+                showToast('Membuat gambar PNG resolusi tinggi...');
+                setTimeout(() => {
+                    try {
+                        const canvas = renderPaperToCanvas(11.811);
+                        const link = document.createElement('a');
+                        link.download = `Cetak-2-Gambar-${state.paperSize}-Landscape.png`;
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                        showToast('File PNG resolusi tinggi berhasil diunduh!');
+                    } catch (err) {
+                        console.error(err);
+                        showToast('Terjadi kesalahan saat membuat file gambar.');
+                    }
+                }, 50);
+            });
+
+            // Inisialisasi awal
+            updatePaperLayout();
+            // Panggil ulang fitPaperToScreen setelah layout stabil
+            setTimeout(fitPaperToScreen, 100);
+        });
+    </script>
+</body>
+</html>
